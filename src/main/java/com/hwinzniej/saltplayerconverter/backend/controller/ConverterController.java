@@ -33,19 +33,22 @@ public class ConverterController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConverterController.class);
 
     @GetMapping("/init")
-    public Object init(@RequestBody String frontEnd, HttpServletRequest request, HttpServletResponse response) {
-        JSONObject front = JSONObject.parseObject(frontEnd);
+    public Object init(@RequestParam String source, HttpServletRequest request, HttpServletResponse response) {
         UUID uuid = UUID.randomUUID();
         HttpSession session = request.getSession(true);
         session.setMaxInactiveInterval(1800);
         session.setAttribute("uuid", uuid.toString());
-        setSessionAttribute(front.getString("source"), session);
-        response.setStatus(200);
-        return "{\"msg\":\"初始化成功\"}";
+        if (setSessionAttribute(source, session)) {
+            response.setStatus(200);
+            return "{\"msg\":\"初始化成功\"}";
+        } else {
+            response.setStatus(400);
+            return "{\"msg\":\"初始化失败\"}";
+        }
     }
 
     @PostMapping("/uploadMusicList")
-    public Object uploadMusicList(@RequestParam("musicList") MultipartFile musicList, HttpServletRequest request, HttpServletResponse response) {
+    public Object uploadMusicList(@RequestBody MultipartFile musicList, HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
@@ -53,7 +56,7 @@ public class ConverterController {
         }
         Map<String, Object> result = new HashMap<>();
 
-        if (musicList.isEmpty()) {
+        if (musicList == null || musicList.isEmpty()) {
             response.setStatus(400);
             result.put("msg", "请选择文件");
 
@@ -70,9 +73,9 @@ public class ConverterController {
         }
 
 //        deleteOutdatedFile(dest, 259200000);
-
+        File newFile = null;
         try {
-            File newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
+            newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
             musicList.transferTo(newFile);
             String[] localMusicFile = Files.readString(Path.of(newFile.getAbsolutePath())).split("\n");
             String[][] localMusic = new String[localMusicFile.length][4];
@@ -91,8 +94,9 @@ public class ConverterController {
             session.setAttribute("musicList", fileName);
             session.setAttribute("localMusic", localMusic);
             return new JSONObject(result);//返回json数据给前端
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error(e.toString(), e);
+            newFile.delete();
         }
         result.put("msg", "上传失败");
         response.setStatus(500);
@@ -100,7 +104,7 @@ public class ConverterController {
     }
 
     @PostMapping("/uploadDatabase")
-    public Object uploadDatabase(@RequestParam("database") MultipartFile databaseFile, HttpServletRequest request, HttpServletResponse response) {
+    public Object uploadDatabase(@RequestBody MultipartFile databaseFile, HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
@@ -108,7 +112,7 @@ public class ConverterController {
         }
         Map<String, Object> result = new HashMap<>();
 
-        if (databaseFile.isEmpty()) {
+        if (databaseFile == null || databaseFile.isEmpty()) {
             response.setStatus(400);
             result.put("msg", "请选择文件");
 
@@ -237,7 +241,7 @@ public class ConverterController {
         }
     }
 
-    @GetMapping("/attemptConvert")
+    @PostMapping("/attemptConvert")
     public Object attemptConvert(@RequestBody String frontEnd, HttpServletRequest request, HttpServletResponse response) {
         JSONObject front = JSONObject.parseObject(frontEnd);
         int similarity = (front.getInteger("similiarity") == null) ? 85 : front.getInteger("similiarity");
@@ -409,7 +413,7 @@ public class ConverterController {
         }
     }
 
-    private void setSessionAttribute(String source, HttpSession session) {
+    private boolean setSessionAttribute(String source, HttpSession session) {
         Map<String, String> sourceAttribute = new HashMap<>();
         switch (source) {
             case "QQMusic" -> {
@@ -480,8 +484,12 @@ public class ConverterController {
                 sourceAttribute.put("songInfoSongArtist", "artist");
                 sourceAttribute.put("songInfoSongAlbum", "album");
             }
+            default -> {
+                return false;
+            }
         }
         session.setAttribute("sourceAttribute", sourceAttribute);
+        return true;
     }
 
     private void deleteOutdatedFile(File folder, int milisenconds) {
