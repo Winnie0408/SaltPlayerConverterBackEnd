@@ -190,21 +190,23 @@ public class ConverterController {
             } else rs = stmt.executeQuery("SELECT " + songListId + ", " + songListName + " FROM " + songListTableName);
 
             ArrayList<String> playListId = new ArrayList<>();
-            ArrayList<String> playListName = new ArrayList<>();
+            Map<String, String> playListName = new HashMap<>();
 
+            int i = 0;
             while (rs.next()) {
                 playListId.add(rs.getString(songListId)); // 保存歌单ID
-                playListName.add(rs.getString(songListName)); // 保存歌单名
+                playListName.put(playListId.get(i), rs.getString(songListName)); // 保存歌单名
+                i++;
             }
 
             Map<String, String> songNum = new HashMap<>();
             ArrayList<Integer> listToBeDelete = new ArrayList<>();
             ArrayList<String> warnings = new ArrayList<>();
 
-            for (int i = 0; i < playListId.size(); i++) {
+            for (i = 0; i < playListId.size(); i++) {
                 //检查歌单是否包含歌曲
                 if (stmt.executeQuery("SELECT COUNT(*) FROM " + songListSongInfoTableName + " WHERE " + songListSongInfoPlaylistId + "=" + playListId.get(i)).getInt(1) == 0) {
-                    warnings.add(playListName.get(i));
+                    warnings.add(playListName.get(playListId.get(i)));
                     listToBeDelete.add(i);
                 } else {
                     rs.close();
@@ -214,8 +216,8 @@ public class ConverterController {
             }
 
             //删除不包含歌曲的歌单
-            for (int i = listToBeDelete.size() - 1; i >= 0; i--) {
-                playListName.remove(playListName.get(listToBeDelete.get(i)));
+            for (i = listToBeDelete.size() - 1; i >= 0; i--) {
+                playListName.remove(playListId.get(listToBeDelete.get(i)));
                 playListId.remove(playListId.get(listToBeDelete.get(i)));
             }
 
@@ -223,11 +225,20 @@ public class ConverterController {
             session.setAttribute("playListName", playListName);
             session.setAttribute("songNum", songNum);
 
+            Map<String, ArrayList<String>> playListInfo = new HashMap<>();
+            for (i = 0; i < playListId.size(); i++) {
+                ArrayList<String> temp = new ArrayList<>();
+                temp.add(playListName.get(playListId.get(i)));
+                temp.add(songNum.get(playListId.get(i)));
+                playListInfo.put(playListId.get(i), temp);
+            }
+
             result.put("msg", "歌单读取成功");
             result.put("warnings", warnings);
-            result.put("playListName", playListName);
-            result.put("playListId", playListId);
-            result.put("songNum", songNum);
+            result.put("playListInfo", playListInfo);
+//            result.put("playListName", playListName);
+//            result.put("playListId", playListId);
+//            result.put("songNum", songNum);
             response.setStatus(200);
             db.closeConnection(conn);
             return new JSONObject(result);
