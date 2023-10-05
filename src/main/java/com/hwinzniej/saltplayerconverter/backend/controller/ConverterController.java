@@ -252,14 +252,17 @@ public class ConverterController {
         }
     }
 
-    @PostMapping("/attemptConvert")
-    public Object attemptConvert(@RequestBody String frontEnd, HttpServletRequest request, HttpServletResponse response) {
-        JSONObject front = JSONObject.parseObject(frontEnd);
-        int similarity = (front.getInteger("similiarity") == null) ? 85 : front.getInteger("similiarity");
-        int playlistId = (front.getInteger("playlistId")) == null ? -1 : front.getInteger("playlistId");
-        boolean enableParenthesesRemoval = (front.getBoolean("enableParenthesesRemoval")) != null && front.getBoolean("enableParenthesesRemoval");
-        boolean enableArtistNameMatch = (front.getBoolean("enableArtistNameMatch")) == null || front.getBoolean("enableArtistNameMatch");
-        boolean enableAlbumNameMatch = (front.getBoolean("enableAlbumNameMatch")) == null || front.getBoolean("enableAlbumNameMatch");
+    @GetMapping("/attemptConvert")
+    public Object attemptConvert(@RequestParam(defaultValue = "85") String similarityF,
+                                 @RequestParam(defaultValue = "-1") String playlistId,
+                                 @RequestParam(defaultValue = "false") String enableParenthesesRemovalF,
+                                 @RequestParam(defaultValue = "true") String enableArtistNameMatchF,
+                                 @RequestParam(defaultValue = "true") String enableAlbumNameMatchF,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        int similarity = Integer.parseInt(similarityF);
+        boolean enableParenthesesRemoval = Boolean.parseBoolean(enableParenthesesRemovalF);
+        boolean enableArtistNameMatch = Boolean.parseBoolean(enableArtistNameMatchF);
+        boolean enableAlbumNameMatch = Boolean.parseBoolean(enableAlbumNameMatchF);
 
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -385,6 +388,7 @@ public class ConverterController {
             response.setStatus(200);
             db.closeConnection(conn);
             result.put("total", num);
+            result.put("sourceChn", sourceChn);
             return new JSONObject(result);
 
         } catch (SQLException e) {
