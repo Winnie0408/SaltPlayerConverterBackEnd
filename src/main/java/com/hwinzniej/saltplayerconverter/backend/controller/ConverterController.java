@@ -78,13 +78,14 @@ public class ConverterController {
             newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
             musicList.transferTo(newFile);
             String[] localMusicFile = Files.readString(Path.of(newFile.getAbsolutePath())).split("\n");
-            String[][] localMusic = new String[localMusicFile.length][4];
+            String[][] localMusic = new String[localMusicFile.length][5];
             int a = 0;
             for (String i : localMusicFile) {
                 localMusic[a][0] = i.split("#\\*#")[0];
                 localMusic[a][1] = i.split("#\\*#")[1];
                 localMusic[a][2] = i.split("#\\*#")[2];
                 localMusic[a][3] = i.split("#\\*#")[3];
+                localMusic[a][4] = i.split("#\\*#")[4];
                 a++;
             }
             LOGGER.info("上传成功，共有" + localMusic.length + "首歌曲");
@@ -259,11 +260,6 @@ public class ConverterController {
                                  @RequestParam(defaultValue = "true") String enableArtistNameMatchF,
                                  @RequestParam(defaultValue = "true") String enableAlbumNameMatchF,
                                  HttpServletRequest request, HttpServletResponse response) {
-        int similarity = Integer.parseInt(similarityF);
-        boolean enableParenthesesRemoval = Boolean.parseBoolean(enableParenthesesRemovalF);
-        boolean enableArtistNameMatch = Boolean.parseBoolean(enableArtistNameMatchF);
-        boolean enableAlbumNameMatch = Boolean.parseBoolean(enableAlbumNameMatchF);
-
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
@@ -274,6 +270,12 @@ public class ConverterController {
             response.setStatus(400);
             return "{\"msg\":\"请先上传数据库\"}";
         }
+
+        int similarity = Integer.parseInt(similarityF);
+        boolean enableParenthesesRemoval = Boolean.parseBoolean(enableParenthesesRemovalF);
+        boolean enableArtistNameMatch = Boolean.parseBoolean(enableArtistNameMatchF);
+        boolean enableAlbumNameMatch = Boolean.parseBoolean(enableAlbumNameMatchF);
+
         String[][] localMusic = (String[][]) session.getAttribute("localMusic");
 //        ArrayList<String> playListId = (ArrayList<String>) session.getAttribute("playListId");
         Map<String, String> sourceAttribute = (Map<String, String>) session.getAttribute("sourceAttribute");
@@ -343,6 +345,10 @@ public class ConverterController {
                 double songNameMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
                 String songNameMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌曲在localMusic数组中的位置
 
+                // TODO:
+                //  添加选项：将三个信息结合在一起，整体匹配；
+                //  选择三个信息的相似度最大的显示在结果中（？）
+
                 //获取歌手名相似度列表
                 double songArtistMaxSimilarity;
                 if (enableArtistNameMatch) {
@@ -397,6 +403,29 @@ public class ConverterController {
             LOGGER.error(e.toString(), e);
             return "{\"msg\":\"系统内部错误！\"}";
         }
+    }
+
+    @GetMapping("/searchLocalMusic")
+    public Object searchLocalMusic(@RequestParam String queryString,HttpServletRequest request, HttpServletResponse response){
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(400);
+            return "{\"msg\":\"请先完成初始化\"}";
+        }
+
+        Map<String, Object> result = new HashMap<>();
+
+        String[][] localMusic = (String[][]) session.getAttribute("localMusic");
+        String[][] manualSearchResult = FindStringArray.findStringArray(localMusic, queryString);
+        Object[] queryResult = new Object[manualSearchResult.length];
+
+        for (int j = 0; j < manualSearchResult.length; j++) {
+            Map<String,Object> temp = new HashMap<>();
+            temp.put("value",manualSearchResult[j][0] + " - " + manualSearchResult[j][1] + " - " + manualSearchResult[j][2]);
+            temp.put("musicId",manualSearchResult[j][4]);
+            queryResult[j]=temp;
+        }
+        return JSONObject.toJSON(queryResult);
     }
 
     private boolean testDatabase(String filePath) {
