@@ -406,11 +406,16 @@ public class ConverterController {
     }
 
     @GetMapping("/searchLocalMusic")
-    public Object searchLocalMusic(@RequestParam String queryString,HttpServletRequest request, HttpServletResponse response){
+    public Object searchLocalMusic(@RequestParam String queryString, HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
             return "{\"msg\":\"请先完成初始化\"}";
+        }
+
+        if (queryString == null || queryString.isEmpty()) {
+            response.setStatus(200);
+            return "[{\"value\":\"请输入查询内容\"}]";
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -420,10 +425,14 @@ public class ConverterController {
         Object[] queryResult = new Object[manualSearchResult.length];
 
         for (int j = 0; j < manualSearchResult.length; j++) {
-            Map<String,Object> temp = new HashMap<>();
-            temp.put("value",manualSearchResult[j][0] + " - " + manualSearchResult[j][1] + " - " + manualSearchResult[j][2]);
-            temp.put("musicId",manualSearchResult[j][4]);
-            queryResult[j]=temp;
+            Map<String, Object> temp = new HashMap<>();
+            temp.put("value", manualSearchResult[j][0] + " - " + manualSearchResult[j][1] + " - " + manualSearchResult[j][2]);
+            temp.put("musicId", manualSearchResult[j][4]);
+            queryResult[j] = temp;
+        }
+        if (manualSearchResult.length == 0) {
+            response.setStatus(200);
+            return "[{\"value\":\"未找到匹配结果\"}]";
         }
         return JSONObject.toJSON(queryResult);
     }
