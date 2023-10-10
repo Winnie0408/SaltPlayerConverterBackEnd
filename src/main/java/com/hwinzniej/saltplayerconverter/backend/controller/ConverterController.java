@@ -6,14 +6,18 @@ import com.hwinzniej.saltplayerconverter.backend.utils.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.compress.archivers.ArchiveException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.LineNumberReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -65,7 +69,7 @@ public class ConverterController {
 
         Random random = new Random();
         String fileName = System.currentTimeMillis() + random.nextInt(1000) + musicList.getOriginalFilename();
-        String filePath = "musicListUpload/";
+        String filePath = "musicListUpload" + File.separator;
 
         File dest = new File(filePath);
         if (!dest.exists()) {
@@ -122,7 +126,7 @@ public class ConverterController {
 
         Random random = new Random();
         String fileName = System.currentTimeMillis() + random.nextInt(1000) + databaseFile.getOriginalFilename();
-        String filePath = "sqliteUpload/";
+        String filePath = "sqliteUpload" + File.separator;
 
         File dest = new File(filePath);
         if (!dest.exists()) {
@@ -348,6 +352,7 @@ public class ConverterController {
                 // TODO:
                 //  添加选项：将三个信息结合在一起，整体匹配；
                 //  选择三个信息的相似度最大的显示在结果中（？）
+                //  统计数据发送
 
                 //获取歌手名相似度列表
                 double songArtistMaxSimilarity;
@@ -435,6 +440,97 @@ public class ConverterController {
             return "[{\"value\":\"未找到匹配结果\"}]";
         }
         return JSONObject.toJSON(queryResult);
+    }
+
+    @PostMapping("/saveCurrentMusicList")
+    public Object saveCurrentMusicList(@RequestBody String frontEnd, HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(400);
+            return "{\"msg\":\"请先完成初始化\"}";
+        }
+
+        JSONObject front = JSONObject.parseObject(frontEnd);
+        Map<String, Double> map = (Map<String, Double>) front.get("result");
+        if (map.isEmpty()) {
+            response.setStatus(400);
+            return "{\"msg\":\"请先进行匹配\"}";
+        }
+        String playlistId = String.valueOf(front.get("playlistId"));
+
+        String[][] localMusic = (String[][]) session.getAttribute("localMusic");
+        Map<String, String> playListName = (Map<String, String>) session.getAttribute("playListName");
+
+        String filePath = "convertResult" + File.separator + session.getId();
+
+        File dest = new File(filePath);
+        if (!dest.exists()) {
+            dest.mkdirs();
+        }
+
+        String fileName = filePath + File.separator + playListName.get(playlistId) + ".txt";
+
+        try {
+            File file = new File(fileName);
+            if (!file.exists())
+                file.createNewFile();
+
+            FileWriter fileWriter = new FileWriter(file.getAbsoluteFile(), true);
+            for (int i = 0; i < map.size(); i++) {
+                if (map.get(i + "") == null) continue;
+                fileWriter.write(localMusic[Integer.parseInt(String.valueOf(map.get(i + "")))][3] + "\n");
+            }
+            fileWriter.close();
+
+        } catch (IOException e) {
+            LOGGER.error(e.toString(), e);
+            response.setStatus(500);
+            return "{\"msg\":\"系统内部错误！\"}";
+        }
+        response.setStatus(200);
+        return "{\"msg\":\"保存成功\"}";
+    }
+
+    @GetMapping("/downloadAll")
+    public ResponseEntity<Resource> downloadCurrentMusicList(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            LOGGER.error("session为空");
+            return ResponseEntity.status(403).build();
+        }
+
+        String filePath = "convertResult" + File.separator + session.getId();
+
+        File dest = new File(filePath);
+        if (!dest.exists()) {
+            LOGGER.error("目录不存在");
+            return ResponseEntity.notFound().build();
+        }
+
+        String fileName = filePath + File.separator + "result.zip";
+        File zipFile = new File(fileName);
+        if (zipFile.exists()) {
+            zipFile.delete();
+        }
+
+        try {
+            OutputStream outputStream = new FileOutputStream(zipFile);
+            ZipUtils.zip(dest, outputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=result.zip");
+
+            Resource resource = new FileSystemResource(zipFile);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(zipFile.length())
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(resource);
+
+        } catch (IOException | ArchiveException e) {
+            LOGGER.error(e.toString(), e);
+            return ResponseEntity.status(500).build();
+        }
     }
 
     private boolean testDatabase(String filePath) {

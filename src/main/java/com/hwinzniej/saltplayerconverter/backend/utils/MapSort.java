@@ -47,9 +47,9 @@ public class MapSort {
             @Override
             public int compare(Map.Entry<String, Double> me1, Map.Entry<String, Double> me2) {
                 if (order == 'A') {
-                    return me1.getValue().compareTo(me2.getValue()); // 升序排序
+                    return me1.getKey().compareTo(me2.getKey()); // 升序排序
                 } else {
-                    return me2.getValue().compareTo(me1.getValue()); // 降序排序
+                    return me2.getKey().compareTo(me1.getKey()); // 降序排序
                 }
             }
         });
