@@ -263,6 +263,7 @@ public class ConverterController {
                                  @RequestParam(defaultValue = "false") String enableParenthesesRemovalF,
                                  @RequestParam(defaultValue = "true") String enableArtistNameMatchF,
                                  @RequestParam(defaultValue = "true") String enableAlbumNameMatchF,
+                                 @RequestParam(defaultValue = "true") String modeF,
                                  HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -279,6 +280,7 @@ public class ConverterController {
         boolean enableParenthesesRemoval = Boolean.parseBoolean(enableParenthesesRemovalF);
         boolean enableArtistNameMatch = Boolean.parseBoolean(enableArtistNameMatchF);
         boolean enableAlbumNameMatch = Boolean.parseBoolean(enableAlbumNameMatchF);
+        boolean mode = Boolean.parseBoolean(modeF);
 
         String[][] localMusic = (String[][]) session.getAttribute("localMusic");
 //        ArrayList<String> playListId = (ArrayList<String>) session.getAttribute("playListId");
@@ -315,6 +317,10 @@ public class ConverterController {
 
             Map<String, Object> result = new HashMap<>();
 
+            // TODO:
+            //  选择三个信息的相似度最大的显示在结果中（？）
+            //  统计数据发送
+
             rs = stmt.executeQuery("SELECT " + songListSongInfoSongId + " FROM " + songListSongInfoTableName + " WHERE " + songListSongInfoPlaylistId + "='" + playlistId + "'ORDER BY " + sortField);
             while (rs.next()) {
                 String trackId = rs.getString(songListSongInfoSongId); //歌曲ID
@@ -333,67 +339,106 @@ public class ConverterController {
                 songAlbum = rs1.getString(songInfoSongAlbum);
                 if (songAlbum == null) songAlbum = "";
 
-                Map<String, Double> nameSimilarityArray = new HashMap<>(); //歌曲名相似度键值对
-                Map<String, Double> artistSimilarityArray = new HashMap<>(); //歌手名相似度键值对
-                Map<String, Double> albumSimilarityArray = new HashMap<>(); //专辑名相似度键值对
+                if (mode) {
+                    Map<String, Double> nameSimilarityArray = new HashMap<>(); //歌曲名相似度键值对
+                    Map<String, Double> artistSimilarityArray = new HashMap<>(); //歌手名相似度键值对
+                    Map<String, Double> albumSimilarityArray = new HashMap<>(); //专辑名相似度键值对
 
-                //获取歌曲名相似度列表
-                if (enableParenthesesRemoval) for (int k = 0; k < localMusic.length; k++) {
-                    nameSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songName.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][0].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
-                }
-                else for (int k = 0; k < localMusic.length; k++) {
-                    nameSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songName.toLowerCase(), localMusic[k][0].toLowerCase()));
-                }
-
-                Map.Entry<String, Double> maxValue = MapSort.getMaxValue(nameSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
-                double songNameMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
-                String songNameMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌曲在localMusic数组中的位置
-
-                // TODO:
-                //  添加选项：将三个信息结合在一起，整体匹配；
-                //  选择三个信息的相似度最大的显示在结果中（？）
-                //  统计数据发送
-
-                //获取歌手名相似度列表
-                double songArtistMaxSimilarity;
-                if (enableArtistNameMatch) {
+                    //获取歌曲名相似度列表
                     if (enableParenthesesRemoval) for (int k = 0; k < localMusic.length; k++) {
-                        artistSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songArtist.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][1].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
+                        nameSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songName.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][0].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
                     }
                     else for (int k = 0; k < localMusic.length; k++) {
-                        artistSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songArtist.toLowerCase(), localMusic[k][1].toLowerCase()));
+                        nameSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songName.toLowerCase(), localMusic[k][0].toLowerCase()));
                     }
-                    maxValue = MapSort.getMaxValue(artistSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
-                    songArtistMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
-                    String songArtistMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌手名
-                } else {
-                    songArtistMaxSimilarity = 1.0;
-                }
 
-                //获取专辑名相似度列表
-                double songAlbumMaxSimilarity;
-                if (enableAlbumNameMatch) {
-                    if (enableParenthesesRemoval) for (int k = 0; k < localMusic.length; k++) {
-                        albumSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songAlbum.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][2].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
-                    }
-                    else for (int k = 0; k < localMusic.length; k++) {
-                        albumSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songAlbum.toLowerCase(), localMusic[k][2].toLowerCase()));
-                    }
-                    maxValue = MapSort.getMaxValue(albumSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
-                    songAlbumMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
-                    String songAlbumMaxKey = maxValue.getKey(); //获取相似度的最大值对应的专辑名
-                } else {
-                    songAlbumMaxSimilarity = 1.0;
-                }
+                    Map.Entry<String, Double> maxValue = MapSort.getMaxValue(nameSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
+                    double songNameMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
+                    String songNameMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌曲在localMusic数组中的位置
 
-                if (songNameMaxSimilarity >= similarity / 100.0 && songArtistMaxSimilarity >= similarity / 100.0 && songAlbumMaxSimilarity >= similarity / 100.0) {
-                    //歌曲名、歌手名、专辑名均匹配成功
-                    String[][] data = {{"true", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
-                    result.put(String.valueOf(num++), data);
-                    autoSuccessCount++;
+                    //获取歌手名相似度列表
+                    double songArtistMaxSimilarity;
+                    if (enableArtistNameMatch) {
+                        if (enableParenthesesRemoval) for (int k = 0; k < localMusic.length; k++) {
+                            artistSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songArtist.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][1].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
+                        }
+                        else for (int k = 0; k < localMusic.length; k++) {
+                            artistSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songArtist.toLowerCase(), localMusic[k][1].toLowerCase()));
+                        }
+                        maxValue = MapSort.getMaxValue(artistSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
+                        songArtistMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
+                        String songArtistMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌手名
+                    } else {
+                        songArtistMaxSimilarity = 1.0;
+                    }
+
+                    //获取专辑名相似度列表
+                    double songAlbumMaxSimilarity;
+                    if (enableAlbumNameMatch) {
+                        if (enableParenthesesRemoval) for (int k = 0; k < localMusic.length; k++) {
+                            albumSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songAlbum.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusic[k][2].replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
+                        }
+                        else for (int k = 0; k < localMusic.length; k++) {
+                            albumSimilarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songAlbum.toLowerCase(), localMusic[k][2].toLowerCase()));
+                        }
+                        maxValue = MapSort.getMaxValue(albumSimilarityArray); //获取键值对表中相似度的最大值所在的键值对
+                        songAlbumMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
+                        String songAlbumMaxKey = maxValue.getKey(); //获取相似度的最大值对应的专辑名
+                    } else {
+                        songAlbumMaxSimilarity = 1.0;
+                    }
+
+                    if (songNameMaxSimilarity >= similarity / 100.0 && songArtistMaxSimilarity >= similarity / 100.0 && songAlbumMaxSimilarity >= similarity / 100.0) {
+                        //歌曲名、歌手名、专辑名均匹配成功
+                        String[][] data = {{"true", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
+                        result.put(String.valueOf(num++), data);
+                        autoSuccessCount++;
+                    } else {
+                        String[][] data = {{"false", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
+                        result.put(String.valueOf(num++), data);
+                    }
                 } else {
-                    String[][] data = {{"false", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
-                    result.put(String.valueOf(num++), data);
+                    Map<String, Double> similarityArray = new HashMap<>(); //相似度键值对
+                    String songInfo = songName;
+                    if (enableAlbumNameMatch)
+                        songInfo += songArtist;
+                    if (enableArtistNameMatch)
+                        songInfo += songAlbum;
+
+                    //获取相似度列表
+                    if (enableParenthesesRemoval)
+                        for (int k = 0; k < localMusic.length; k++) {
+                            String localMusicInfo = localMusic[k][0];
+                            if (enableAlbumNameMatch)
+                                localMusicInfo += localMusic[k][1];
+                            if (enableArtistNameMatch)
+                                localMusicInfo += localMusic[k][2];
+                            similarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songInfo.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase(), localMusicInfo.replaceAll("(?i) ?\\((?!inst|[^()]* ver)[^)]*\\) ?", "").toLowerCase()));
+                        }
+                    else
+                        for (int k = 0; k < localMusic.length; k++) {
+                            String localMusicInfo = localMusic[k][0];
+                            if (enableAlbumNameMatch)
+                                localMusicInfo += localMusic[k][1];
+                            if (enableArtistNameMatch)
+                                localMusicInfo += localMusic[k][2];
+                            similarityArray.put(String.valueOf(k), StringSimilarityCompare.similarityRatio(songInfo.toLowerCase(), localMusicInfo.toLowerCase()));
+                        }
+
+                    Map.Entry<String, Double> maxValue = MapSort.getMaxValue(similarityArray); //获取键值对表中相似度的最大值所在的键值对
+                    double songMaxSimilarity = maxValue.getValue(); //获取相似度的最大值
+                    String songMaxKey = maxValue.getKey(); //获取相似度的最大值对应的歌曲在localMusic数组中的位置
+
+                    if (songMaxSimilarity >= similarity / 100.0) {
+                        //歌曲匹配成功
+                        String[][] data = {{"true", songMaxKey}, {songName, localMusic[Integer.parseInt(songMaxKey)][0], String.format("%.1f%%", songMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songMaxKey)][1], String.format("%.1f%%", songMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songMaxKey)][2], String.format("%.1f%%", songMaxSimilarity * 100)}};
+                        result.put(String.valueOf(num++), data);
+                        autoSuccessCount++;
+                    } else {
+                        String[][] data = {{"false", songMaxKey}, {songName, localMusic[Integer.parseInt(songMaxKey)][0], String.format("%.1f%%", songMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songMaxKey)][1], String.format("%.1f%%", songMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songMaxKey)][2], String.format("%.1f%%", songMaxSimilarity * 100)}};
+                        result.put(String.valueOf(num++), data);
+                    }
+
                 }
             }
             response.setStatus(200);
@@ -531,6 +576,13 @@ public class ConverterController {
             LOGGER.error(e.toString(), e);
             return ResponseEntity.status(500).build();
         }
+    }
+
+    @GetMapping("/test")
+    public String test(@RequestParam(defaultValue = "") String ping) {
+        if (ping.equals("Ping!"))
+            return "Pong!";
+        return "";
     }
 
     private boolean testDatabase(String filePath) {
