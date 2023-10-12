@@ -54,11 +54,12 @@ public class ConverterController {
     @PostMapping("/uploadMusicList")
     public Object uploadMusicList(@RequestBody MultipartFile musicList, HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
+        Map<String, Object> result = new HashMap<>();
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}";
+            result.put("msg", "请先完成初始化");
+            return result;
         }
-        Map<String, Object> result = new HashMap<>();
 
         if (musicList == null || musicList.isEmpty()) {
             response.setStatus(400);
@@ -92,7 +93,7 @@ public class ConverterController {
                 localMusic[a][4] = i.split("#\\*#")[4];
                 a++;
             }
-            LOGGER.info("上传成功，共有" + localMusic.length + "首歌曲");
+//            LOGGER.info("上传成功，共有" + localMusic.length + "首歌曲");
             result.put("msg", "上传成功");
             result.put("count", localMusic.length);
             response.setStatus(200);
@@ -102,20 +103,21 @@ public class ConverterController {
         } catch (Exception e) {
             LOGGER.error(e.toString(), e);
             newFile.delete();
+            result.put("msg", "数据解析失败 " + e);
+            response.setStatus(500);
+            return new JSONObject(result);//返回json数据给前端
         }
-        result.put("msg", "上传失败");
-        response.setStatus(500);
-        return new JSONObject(result);//返回json数据给前端
     }
 
     @PostMapping("/uploadDatabase")
     public Object uploadDatabase(@RequestBody MultipartFile databaseFile, HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
+        Map<String, Object> result = new HashMap<>();
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}";
+            result.put("msg", "请先完成初始化");
+            return result;
         }
-        Map<String, Object> result = new HashMap<>();
 
         if (databaseFile == null || databaseFile.isEmpty()) {
             response.setStatus(400);
@@ -138,37 +140,38 @@ public class ConverterController {
         try {
             File newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
             databaseFile.transferTo(newFile);
-            if (testDatabase(newFile.getAbsolutePath())) {
-                LOGGER.info("上传成功，数据库读取成功");
+            String testResult = testDatabase(newFile.getAbsolutePath());
+            if (testResult.equals("true")) {
+//                LOGGER.info("上传成功，数据库读取成功");
                 result.put("msg", "上传成功，数据库读取成功");
                 response.setStatus(200);
                 session.setAttribute("database", fileName);
                 return new JSONObject(result);
             } else {
-                LOGGER.info("上传成功，数据库读取失败");
-                result.put("msg", "上传成功，数据库读取失败");
+                LOGGER.error(testResult);
+                result.put("msg", "数据库读取失败 " + testResult);
                 response.setStatus(400);
                 newFile.delete();
                 return new JSONObject(result);
             }
         } catch (IOException e) {
             LOGGER.error(e.toString(), e);
+            result.put("msg", e);
+            response.setStatus(500);
+            return new JSONObject(result);
         }
-        result.put("msg", "上传失败");
-        response.setStatus(500);
-        return new JSONObject(result);
     }
 
     @GetMapping("/databaseSummary")
     public Object databaseSummary(HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
+        Map<String, Object> result = new HashMap<>();
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}";
+            result.put("msg", "请先完成初始化");
+            return result;
         }
         String database = String.valueOf(session.getAttribute("database"));
-
-        Map<String, Object> result = new HashMap<>();
 
         Map<String, String> sourceAttribute = (Map<String, String>) session.getAttribute("sourceAttribute");
         String sourceEng = sourceAttribute.get("sourceEng");
@@ -266,14 +269,18 @@ public class ConverterController {
                                  @RequestParam(defaultValue = "true") String modeF,
                                  HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
+        Map<String, Object> result = new HashMap<>();
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}";
+            result.put("msg", "请先完成初始化");
+            return result;
         }
+
         String database = String.valueOf(session.getAttribute("database"));
         if (database == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先上传数据库\"}";
+            result.put("msg", "请先上传数据库");
+            return result;
         }
 
         int similarity = Integer.parseInt(similarityF);
@@ -315,11 +322,10 @@ public class ConverterController {
             String sourceEng = sourceAttribute.get("sourceEng");
             String sourceChn = sourceAttribute.get("sourceChn");
 
-            Map<String, Object> result = new HashMap<>();
-
             // TODO:
             //  选择三个信息的相似度最大的显示在结果中（？）
             //  统计数据发送
+            //  删除已上传的文件（GET请求）
 
             rs = stmt.executeQuery("SELECT " + songListSongInfoSongId + " FROM " + songListSongInfoTableName + " WHERE " + songListSongInfoPlaylistId + "='" + playlistId + "'ORDER BY " + sortField);
             while (rs.next()) {
@@ -451,7 +457,8 @@ public class ConverterController {
             response.setStatus(500);
             db.closeConnection(conn);
             LOGGER.error(e.toString(), e);
-            return "{\"msg\":\"系统内部错误！\"}";
+            result.put("msg", e);
+            return result;
         }
     }
 
@@ -467,8 +474,6 @@ public class ConverterController {
             response.setStatus(200);
             return "[{\"value\":\"请输入查询内容\"}]";
         }
-
-        Map<String, Object> result = new HashMap<>();
 
         String[][] localMusic = (String[][]) session.getAttribute("localMusic");
         String[][] manualSearchResult = FindStringArray.findStringArray(localMusic, queryString);
@@ -526,14 +531,13 @@ public class ConverterController {
                 fileWriter.write(localMusic[Integer.parseInt(String.valueOf(map.get(i + "")))][3] + "\n");
             }
             fileWriter.close();
-
+            response.setStatus(200);
+            return "{\"msg\":\"保存成功\"}";
         } catch (IOException e) {
             LOGGER.error(e.toString(), e);
             response.setStatus(500);
-            return "{\"msg\":\"系统内部错误！\"}";
+            return "{\"msg\":\"" + e + "\"}";
         }
-        response.setStatus(200);
-        return "{\"msg\":\"保存成功\"}";
     }
 
     @GetMapping("/downloadAll")
@@ -585,16 +589,16 @@ public class ConverterController {
         return "";
     }
 
-    private boolean testDatabase(String filePath) {
+    private String testDatabase(String filePath) {
         Database db = new Database();
         Connection conn = db.getConnection(filePath);
         try {
             conn.createStatement().execute("SELECT type FROM  sqlite_master LIMIT 1");
             db.closeConnection(conn);
-            return true;
+            return "true";
         } catch (Exception e) {
             db.closeConnection(conn);
-            return false;
+            return e.toString();
         }
     }
 
@@ -704,10 +708,10 @@ public class ConverterController {
                 try {
                     File del = new File(temp.getAbsolutePath());
                     if (del.delete()) {
-                        LOGGER.info("旧文件删除成功");
+//                        LOGGER.info("旧文件删除成功");
                     }
                 } catch (Exception e) {
-                    LOGGER.info("旧文件删除失败");
+//                    LOGGER.info("旧文件删除失败");
                 }
             }
         }
