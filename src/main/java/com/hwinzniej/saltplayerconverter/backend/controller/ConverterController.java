@@ -68,8 +68,7 @@ public class ConverterController {
             return new JSONObject(result);
         }
 
-        Random random = new Random();
-        String fileName = System.currentTimeMillis() + random.nextInt(1000) + musicList.getOriginalFilename();
+        String fileName = session.getId().substring(0, 25) + musicList.getOriginalFilename();
         String filePath = "musicListUpload" + File.separator;
 
         File dest = new File(filePath);
@@ -81,6 +80,8 @@ public class ConverterController {
         File newFile = null;
         try {
             newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
+            if (newFile.exists())
+                newFile.delete();
             musicList.transferTo(newFile);
             String[] localMusicFile = Files.readString(Path.of(newFile.getAbsolutePath())).split("\n");
             String[][] localMusic = new String[localMusicFile.length][5];
@@ -122,12 +123,10 @@ public class ConverterController {
         if (databaseFile == null || databaseFile.isEmpty()) {
             response.setStatus(400);
             result.put("msg", "请选择文件");
-
             return new JSONObject(result);
         }
 
-        Random random = new Random();
-        String fileName = System.currentTimeMillis() + random.nextInt(1000) + databaseFile.getOriginalFilename();
+        String fileName = session.getId().substring(0, 25) + databaseFile.getOriginalFilename();
         String filePath = "sqliteUpload" + File.separator;
 
         File dest = new File(filePath);
@@ -139,6 +138,8 @@ public class ConverterController {
 
         try {
             File newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
+            if (newFile.exists())
+                newFile.delete();
             databaseFile.transferTo(newFile);
             String testResult = testDatabase(newFile.getAbsolutePath());
             if (testResult.equals("true")) {
@@ -253,7 +254,7 @@ public class ConverterController {
 
         } catch (SQLException e) {
             response.setStatus(500);
-            result.put("msg", "歌单读取失败");
+            result.put("msg", "歌单读取失败 " + e);
             db.closeConnection(conn);
             LOGGER.error(e.toString(), e);
             return new JSONObject(result);
@@ -472,7 +473,7 @@ public class ConverterController {
 
         if (queryString == null || queryString.isEmpty()) {
             response.setStatus(200);
-            return "[{\"value\":\"请输入查询内容\"}]";
+            return "[{\"value\":\"请输入搜索关键词\"}]";
         }
 
         String[][] localMusic = (String[][]) session.getAttribute("localMusic");
@@ -587,6 +588,56 @@ public class ConverterController {
         if (ping.equals("Ping!"))
             return "Pong!";
         return "";
+    }
+
+    @DeleteMapping("/deleteAll")
+    public Object deleteAll(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(400);
+            return "{\"msg\":\"请先完成初始化\"}";
+        }
+        Map<String, Object> result = new HashMap<>();
+
+        String sessionId = session.getId();
+
+        String resultDirPath = "convertResult" + File.separator + sessionId;
+
+        File dir = new File(resultDirPath);
+        if (!dir.exists()) {
+            response.setStatus(400);
+            result.put("msg", "要删除的目录不存在");
+            return result;
+        }
+
+        try {
+            deleteFilesInDir(dir, "");
+            dir.delete();
+            deleteFilesInDir(new File("sqliteUpload" + File.separator), sessionId.substring(0, 25));
+            deleteFilesInDir(new File("musicListUpload" + File.separator), sessionId.substring(0, 25));
+        } catch (Exception e) {
+            response.setStatus(500);
+            result.put("msg", "删除失败 " + e);
+            return result;
+        }
+        response.setStatus(200);
+        result.put("msg", "删除成功");
+        return result;
+    }
+
+    private void deleteFilesInDir(File dir, String startWith) throws Exception {
+        if (dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (startWith.isBlank())
+                for (File file : files) {
+                    file.delete();
+                }
+            else
+                for (File file : files) {
+                    if (file.getName().startsWith(startWith))
+                        file.delete();
+                }
+        }
     }
 
     private String testDatabase(String filePath) {
