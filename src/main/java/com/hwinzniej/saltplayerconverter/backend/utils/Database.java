@@ -22,15 +22,10 @@ public class Database {
      * @param dbPath 数据库文件的名称或绝对路径
      * @return 数据库连接接口
      */
-    public Connection getConnection(String dbPath) {
-        Connection conn = null;
-        try {
-            String url = "jdbc:sqlite:" + dbPath;
-            conn = DriverManager.getConnection(url);
-            LOGGER.info("成功连接SQLite数据库");
-        } catch (SQLException e) {
-            LOGGER.error("数据库连接失败！\n错误详情：" + e.getMessage());
-        }
+    public Connection getSQLiteConnection(String dbPath) throws SQLException {
+        Connection conn;
+        String url = "jdbc:sqlite:" + dbPath;
+        conn = DriverManager.getConnection(url);
         return conn;
     }
 
@@ -42,9 +37,20 @@ public class Database {
     public void closeConnection(Connection conn) {
         try {
             conn.close();
-            LOGGER.info("成功断开SQLite数据库");
+            LOGGER.info("成功断开数据库");
         } catch (SQLException e) {
-            LOGGER.error("数据库断开失败！\n错误详情：" + e.getMessage());
+            LOGGER.error("数据库断开失败！\n错误详情：" + e);
         }
+    }
+
+    public Connection getMySQLConnection() throws SQLException {
+        Connection conn = null;
+        String url = "jdbc:mysql://127.0.0.1:3306/salt_player_converter_statistic?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&rewriteBatchedStatements=true" ;
+        String username = "root" ;
+//            String password = "";
+        String password = "" ;
+        conn = DriverManager.getConnection(url, username, password);
+
+        return conn;
     }
 }
