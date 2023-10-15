@@ -25,10 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @description: 歌单转换
@@ -45,10 +42,10 @@ public class ConverterController {
         HttpSession session = request.getSession(false);
         if (setSessionAttribute(source, session)) {
             response.setStatus(200);
-            return "{\"msg\":\"初始化成功\"}" ;
+            return "{\"msg\":\"初始化成功\"}";
         } else {
             response.setStatus(400);
-            return "{\"msg\":\"初始化失败\"}" ;
+            return "{\"msg\":\"初始化失败\"}";
         }
     }
 
@@ -337,17 +334,17 @@ public class ConverterController {
                 rs1 = stmt1.executeQuery("SELECT " + songInfoSongName + ", " + songInfoSongArtist + ", " + songInfoSongAlbum + " FROM " + songInfoTableName + " WHERE " + songInfoSongId + "=" + trackId); //使用歌曲ID查询歌曲信息
 
                 songName = rs1.getString(songInfoSongName);
-                if (songName == null) songName = "" ;
+                if (songName == null) songName = "";
 
                 songArtist = rs1.getString(songInfoSongArtist);
-                if (songArtist == null) songArtist = "" ;
+                if (songArtist == null) songArtist = "";
                 //网易云音乐歌手名为JSON格式，需要特殊处理
                 if (sourceEng.equals("CloudMusic"))
                     songArtist = JSON.parseObject(songArtist.substring(1, songArtist.length() - 1)).getString("name");
                 songArtist = songArtist.replaceAll(" ?& ?", "/").replaceAll("、", "/");
 
                 songAlbum = rs1.getString(songInfoSongAlbum);
-                if (songAlbum == null) songAlbum = "" ;
+                if (songAlbum == null) songAlbum = "";
 
                 if (mode) {
                     Map<String, Double> nameSimilarityArray = new HashMap<>(); //歌曲名相似度键值对
@@ -474,12 +471,12 @@ public class ConverterController {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}" ;
+            return "{\"msg\":\"请先完成初始化\"}";
         }
 
         if (queryString == null || queryString.isEmpty()) {
             response.setStatus(200);
-            return "[{\"value\":\"请输入搜索关键词\"}]" ;
+            return "[{\"value\":\"请输入搜索关键词\"}]";
         }
 
         String[][] localMusic = (String[][]) session.getAttribute("localMusic");
@@ -494,7 +491,7 @@ public class ConverterController {
         }
         if (manualSearchResult.length == 0) {
             response.setStatus(200);
-            return "[{\"value\":\"未找到匹配结果\"}]" ;
+            return "[{\"value\":\"未找到匹配结果\"}]";
         }
         return JSONObject.toJSON(queryResult);
     }
@@ -504,14 +501,18 @@ public class ConverterController {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}" ;
+            return "{\"msg\":\"请先完成初始化\"}";
         }
 
         JSONObject front = JSONObject.parseObject(frontEnd);
-        Map<String, Double> map = (Map<String, Double>) front.get("result");
-        if (map.isEmpty()) {
+        Map<String, String> temp = (Map<String, String>) front.get("result");
+        if (temp.isEmpty()) {
             response.setStatus(400);
-            return "{\"msg\":\"请先进行匹配\"}" ;
+            return "{\"msg\":\"请先进行匹配\"}";
+        }
+        Map<Integer, Integer> map = new HashMap<>();
+        for (Map.Entry<String, String> entry : temp.entrySet()) {
+            map.put(Integer.valueOf(entry.getKey()), Integer.parseInt(entry.getValue()));
         }
         String playlistId = String.valueOf(front.get("playlistId"));
 
@@ -525,27 +526,32 @@ public class ConverterController {
             dest.mkdirs();
         }
 
-        String fileName = filePath + File.separator + playListName.get(playlistId) + ".txt" ;
+        String fileName = filePath + File.separator + playListName.get(playlistId) + ".txt";
 
         try {
             File file = new File(fileName);
-            if (!file.exists())
+            if (file.exists())
+                file.delete();
+            else
                 file.createNewFile();
 
             FileWriter fileWriter = new FileWriter(file.getAbsoluteFile(), true);
-            for (int i = 0; i < map.size(); i++) {
-                if (map.get(i + "") == null) continue;
-                fileWriter.write(localMusic[Integer.parseInt(String.valueOf(map.get(i + "")))][3] + "\n");
-            }
+
+            List<Map.Entry<Integer, Integer>> mapResult = MapSort.sortByKey(map, 'A');
+            mapResult.forEach(i -> {
+                if (i.getValue() == null) return;
+                try {
+                    fileWriter.write(localMusic[i.getValue()][3] + "\n");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
             fileWriter.close();
-            response.setStatus(200);
-            if (session.getAttribute("allowStatistic").equals(true))
-                saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
-            return "{\"msg\":\"保存成功\"}" ;
+            return "{\"msg\":\"保存成功\"}";
         } catch (Exception e) {
             LOGGER.error(e.toString(), e);
             response.setStatus(500);
-            return "{\"msg\":\"" + e + "\"}" ;
+            return "{\"msg\":\"" + e + "\"}";
         }
     }
 
@@ -565,7 +571,7 @@ public class ConverterController {
             return ResponseEntity.notFound().build();
         }
 
-        String fileName = filePath + File.separator + "result.zip" ;
+        String fileName = filePath + File.separator + "result.zip";
         File zipFile = new File(fileName);
         if (zipFile.exists()) {
             zipFile.delete();
@@ -597,8 +603,8 @@ public class ConverterController {
         session.setMaxInactiveInterval(900);
         session.setAttribute("allowStatistic", allowStatistic);
         if (ping.equals("Ping!"))
-            return "Pong!" ;
-        return "" ;
+            return "Pong!";
+        return "";
     }
 
     @DeleteMapping("/deleteAll")
@@ -606,7 +612,7 @@ public class ConverterController {
         HttpSession session = request.getSession(false);
         if (session == null) {
             response.setStatus(400);
-            return "{\"msg\":\"请先完成初始化\"}" ;
+            return "{\"msg\":\"请先完成初始化\"}";
         }
         Map<String, Object> result = new HashMap<>();
 
@@ -638,16 +644,16 @@ public class ConverterController {
     }
 
     private String saveStatistic1(Map<String, String> sourceAttribute,
-                                boolean enableParenthesesRemoval,
-                                boolean enableArtistNameMatch,
-                                boolean enableAlbumNameMatch,
-                                boolean mode,
-                                int totalCount,
-                                int autoSuccessCount,
-                                int similarity,
-                                String sessionId) throws SQLException {
+                                  boolean enableParenthesesRemoval,
+                                  boolean enableArtistNameMatch,
+                                  boolean enableAlbumNameMatch,
+                                  boolean mode,
+                                  int totalCount,
+                                  int autoSuccessCount,
+                                  int similarity,
+                                  String sessionId) throws SQLException {
         String sourceChn = sourceAttribute.get("sourceChn");
-        SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         String time = sdf.format(System.currentTimeMillis());
         Database db = new Database();
         Connection conn = db.getMySQLConnection();
@@ -688,7 +694,7 @@ public class ConverterController {
         try {
             conn.createStatement().execute("SELECT * FROM  " + tableName + " LIMIT 1");
             db.closeConnection(conn);
-            return "true" ;
+            return "true";
         } catch (Exception e) {
             db.closeConnection(conn);
             return e.toString();

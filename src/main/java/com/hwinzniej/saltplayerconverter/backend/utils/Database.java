@@ -37,7 +37,6 @@ public class Database {
     public void closeConnection(Connection conn) {
         try {
             conn.close();
-            LOGGER.info("成功断开数据库");
         } catch (SQLException e) {
             LOGGER.error("数据库断开失败！\n错误详情：" + e);
         }

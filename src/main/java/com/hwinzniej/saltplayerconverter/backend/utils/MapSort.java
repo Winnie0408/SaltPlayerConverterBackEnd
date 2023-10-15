@@ -41,11 +41,11 @@ public class MapSort {
      * @param order A:升序 D:降序
      * @return 排序完成后的List
      */
-    public static List<Map.Entry<String, Double>> sortByKey(Map<String, Double> map, char order) {
-        List<Map.Entry<String, Double>> entryList1 = new ArrayList<>(map.entrySet());
+    public static List<Map.Entry<Integer, Integer>> sortByKey(Map<Integer, Integer> map, char order) {
+        List<Map.Entry<Integer, Integer>> entryList1 = new ArrayList<>(map.entrySet());
         entryList1.sort(new Comparator<>() {
             @Override
-            public int compare(Map.Entry<String, Double> me1, Map.Entry<String, Double> me2) {
+            public int compare(Map.Entry<Integer, Integer> me1, Map.Entry<Integer, Integer> me2) {
                 if (order == 'A') {
                     return me1.getKey().compareTo(me2.getKey()); // 升序排序
                 } else {
