@@ -25,7 +25,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @description: 歌单转换
@@ -74,7 +77,6 @@ public class ConverterController {
             dest.mkdirs();
         }
 
-//        deleteOutdatedFile(dest, 259200000);
         File newFile = null;
         try {
             newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
@@ -131,8 +133,6 @@ public class ConverterController {
         if (!dest.exists()) {
             dest.mkdirs();
         }
-
-//        deleteOutdatedFile(dest, 259200000);
 
         try {
             File newFile = new File(dest.getAbsolutePath() + File.separator + fileName);
@@ -223,6 +223,7 @@ public class ConverterController {
                     songNum.put(playListId.get(i), String.valueOf(rs.getInt(1)));
                 }
             }
+            stmt.close();
 
             //删除不包含歌曲的歌单
             for (i = listToBeDelete.size() - 1; i >= 0; i--) {
@@ -397,11 +398,13 @@ public class ConverterController {
 
                     if (songNameMaxSimilarity >= similarity / 100.0 && songArtistMaxSimilarity >= similarity / 100.0 && songAlbumMaxSimilarity >= similarity / 100.0) {
                         //歌曲名、歌手名、专辑名均匹配成功
-                        String[][] data = {{"true", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
+                        String[][] data = {{"true", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songNameMaxSimilarity * 100)}};
+//                        String[][] data = {{"true", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
                         result.put(String.valueOf(num++), data);
                         autoSuccessCount++;
                     } else {
-                        String[][] data = {{"false", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
+                        String[][] data = {{"false", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songNameMaxSimilarity * 100)}};
+//                        String[][] data = {{"false", songNameMaxKey}, {songName, localMusic[Integer.parseInt(songNameMaxKey)][0], String.format("%.1f%%", songNameMaxSimilarity * 100)}, {songArtist, localMusic[Integer.parseInt(songNameMaxKey)][1], String.format("%.1f%%", songArtistMaxSimilarity * 100)}, {songAlbum, localMusic[Integer.parseInt(songNameMaxKey)][2], String.format("%.1f%%", songAlbumMaxSimilarity * 100)}};
                         result.put(String.valueOf(num++), data);
                     }
                 } else {
@@ -449,6 +452,8 @@ public class ConverterController {
                 }
             }
             response.setStatus(200);
+            stmt.close();
+            stmt1.close();
             db.closeConnection(conn);
             result.put("total", num);
             result.put("sourceChn", sourceChn);
@@ -547,6 +552,9 @@ public class ConverterController {
                 }
             });
             fileWriter.close();
+            response.setStatus(200);
+            if (session.getAttribute("allowStatistic").equals(true))
+                saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
             return "{\"msg\":\"保存成功\"}";
         } catch (Exception e) {
             LOGGER.error(e.toString(), e);
@@ -653,14 +661,17 @@ public class ConverterController {
                                   int similarity,
                                   String sessionId) throws SQLException {
         String sourceChn = sourceAttribute.get("sourceChn");
+        String sourceEng = sourceAttribute.get("sourceEng");
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         String time = sdf.format(System.currentTimeMillis());
         Database db = new Database();
         Connection conn = db.getMySQLConnection();
 
         Statement stmt = conn.createStatement();
-        stmt.executeUpdate("INSERT INTO info (source, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, totalCount, autoSuccessCount, similarity, startTime, sessionId) VALUES ('" + sourceChn + "', " + enableParenthesesRemoval + ", " + enableArtistNameMatch + ", " + enableAlbumNameMatch + ", " + mode + ", " + totalCount + ", " + autoSuccessCount + ", " + similarity + ", '" + time + "', '" + sessionId + "')");
+        stmt.executeUpdate("INSERT INTO info (sourceEng, sourceChn, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, totalCount, autoSuccessCount, similarity, startTime, sessionId, tool) VALUES ('" + sourceEng + "', " + "'" + sourceChn + "', " + enableParenthesesRemoval + ", " + enableArtistNameMatch + ", " + enableAlbumNameMatch + ", " + mode + ", " + totalCount + ", " + autoSuccessCount + ", " + similarity + ", '" + time + "', '" + sessionId + "', 'Vue+SpringBoot')");
 
+        stmt.close();
+        db.closeConnection(conn);
         return time;
     }
 
@@ -671,6 +682,8 @@ public class ConverterController {
         Statement stmt = conn.createStatement();
         stmt.executeUpdate("UPDATE info SET endTime=NOW(3), saveCount=" + saveCount + " WHERE startTime='" + time + "'AND sessionId='" + sessionId + "'");
 
+        stmt.close();
+        db.closeConnection(conn);
     }
 
     private void deleteFilesInDir(File dir, String startWith) throws Exception {
@@ -794,26 +807,6 @@ public class ConverterController {
         }
         session.setAttribute("sourceAttribute", sourceAttribute);
         return true;
-    }
-
-    private void deleteOutdatedFile(File folder, int milisenconds) {
-        String[] Name = folder.list();
-        Date DATE = new Date();
-
-        //自动删除3天前上传的文件
-        for (String i : Name) {
-            File temp = new File(folder.getAbsolutePath() + "/" + i);
-            if (DATE.getTime() - temp.lastModified() > milisenconds) {
-                try {
-                    File del = new File(temp.getAbsolutePath());
-                    if (del.delete()) {
-//                        LOGGER.info("旧文件删除成功");
-                    }
-                } catch (Exception e) {
-//                    LOGGER.info("旧文件删除失败");
-                }
-            }
-        }
     }
 
 }

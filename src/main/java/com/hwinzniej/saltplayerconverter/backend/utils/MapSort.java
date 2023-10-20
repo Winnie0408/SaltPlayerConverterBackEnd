@@ -1,7 +1,6 @@
 package com.hwinzniej.saltplayerconverter.backend.utils;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,14 +20,11 @@ public class MapSort {
      */
     public static List<Map.Entry<String, Double>> sortByValue(Map<String, Double> map, char order) {
         List<Map.Entry<String, Double>> entryList2 = new ArrayList<>(map.entrySet());
-        entryList2.sort(new Comparator<>() {
-            @Override
-            public int compare(Map.Entry<String, Double> me1, Map.Entry<String, Double> me2) {
-                if (order == 'A') {
-                    return me1.getValue().compareTo(me2.getValue()); // 升序排序
-                } else {
-                    return me2.getValue().compareTo(me1.getValue()); // 降序排序
-                }
+        entryList2.sort((me1, me2) -> {
+            if (order == 'A') {
+                return me1.getValue().compareTo(me2.getValue()); // 升序排序
+            } else {
+                return me2.getValue().compareTo(me1.getValue()); // 降序排序
             }
         });
         return entryList2;
@@ -43,14 +39,11 @@ public class MapSort {
      */
     public static List<Map.Entry<Integer, Integer>> sortByKey(Map<Integer, Integer> map, char order) {
         List<Map.Entry<Integer, Integer>> entryList1 = new ArrayList<>(map.entrySet());
-        entryList1.sort(new Comparator<>() {
-            @Override
-            public int compare(Map.Entry<Integer, Integer> me1, Map.Entry<Integer, Integer> me2) {
-                if (order == 'A') {
-                    return me1.getKey().compareTo(me2.getKey()); // 升序排序
-                } else {
-                    return me2.getKey().compareTo(me1.getKey()); // 降序排序
-                }
+        entryList1.sort((me1, me2) -> {
+            if (order == 'A') {
+                return me1.getKey().compareTo(me2.getKey()); // 升序排序
+            } else {
+                return me2.getKey().compareTo(me1.getKey()); // 降序排序
             }
         });
         return entryList1;
