@@ -28,7 +28,7 @@
 - JRE (版本 >= 17)
 - Maven
 
-### 项目的使用与运行（四选一即可）
+### 项目的使用与运行（三选一即可）
 
 #### 1. 使用Java IDE（如IntelliJ IDEA、Eclipse等）从源码运行
 
@@ -72,11 +72,6 @@ java -jar [FileName].jar
 ```bash
 java -jar [FileName].jar
 ```
-
-#### 4. 下载并运行EXE文件（默认占用8082端口）
-
-1. 在项目的[Release页面](https://github.com/Winnie0408/SaltPlayerConverter/releases)，找到最新版本，下载适合自己电脑架构的，以`.exe`结尾的文件。
-2. 双击运行刚刚下载的文件。
 
 ### 配置Maven镜像源
 
