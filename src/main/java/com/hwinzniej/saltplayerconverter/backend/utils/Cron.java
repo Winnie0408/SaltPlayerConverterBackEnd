@@ -1,6 +1,7 @@
 package com.hwinzniej.saltplayerconverter.backend.utils;
 
 import com.hwinzniej.saltplayerconverter.backend.controller.ConverterController;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,10 +21,10 @@ public class Cron {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConverterController.class);
 
     public static void startJob() {
-        try (ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor()) {
+        try (CloseableExecutor executor = new CloseableExecutor(Executors.newSingleThreadScheduledExecutor())) {
             long initialDelay = 3; // 延迟3天
             long period = 3; // 每隔3天执行一次
-            service.scheduleAtFixedRate(() -> {
+            executor.getExecutor().scheduleAtFixedRate(() -> {
                 deleteOutdatedFile(new File("sqliteUpload" + File.separator), 259200000);
                 deleteOutdatedFile(new File("musicListUpload" + File.separator), 259200000);
                 deleteOutdatedFile(new File("convertResult" + File.separator), 259200000);
@@ -52,6 +53,20 @@ public class Cron {
                     }
                 }
             }
+        }
+    }
+
+    @Getter
+    public static class CloseableExecutor implements AutoCloseable {
+        private final ScheduledExecutorService executor;
+
+        public CloseableExecutor(ScheduledExecutorService executor) {
+            this.executor = executor;
+        }
+
+        @Override
+        public void close() {
+            executor.shutdown();
         }
     }
 }
