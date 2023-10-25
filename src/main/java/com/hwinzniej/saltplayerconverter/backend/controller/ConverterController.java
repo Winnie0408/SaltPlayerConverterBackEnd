@@ -750,9 +750,9 @@ public class ConverterController {
 
         String url;
         if (IN_DOCKER)
-            url = "http://localhost:8082/statistic/save";
-        else
             url = "https://saltconv.hwinzniej.top:46000/statistic/save";
+        else
+            url = "http://localhost:8082/statistic/save";
         try {
             CloseableHttpClient httpClient = HttpClientBuilder.create().build();
             HttpPost httpPost = new HttpPost(url);
@@ -794,9 +794,9 @@ public class ConverterController {
         JSONObject jsonObject = new JSONObject(result);
         String url;
         if (IN_DOCKER)
-            url = "http://localhost:8082/statistic/usage";
-        else
             url = "https://saltconv.hwinzniej.top:46000/statistic/usage";
+        else
+            url = "http://localhost:8082/statistic/usage";
         try {
             CloseableHttpClient httpClient = HttpClientBuilder.create().build();
             HttpPost httpPost = new HttpPost(url);
