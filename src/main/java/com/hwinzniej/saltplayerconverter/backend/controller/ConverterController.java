@@ -7,6 +7,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.apache.commons.compress.archivers.ArchiveException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -18,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -39,6 +45,7 @@ import java.util.Map;
 @RequestMapping("/converter")
 public class ConverterController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConverterController.class);
+    private static final boolean IN_DOCKER = false;
 
     @GetMapping("/init")
     public Object init(@RequestParam String source, HttpServletRequest request, HttpServletResponse response) {
@@ -190,7 +197,7 @@ public class ConverterController {
 
         Database db = new Database();
         try {
-            conn = db.getSQLiteConnection("sqliteUpload/" + database);
+            conn = db.getSQLiteConnection("sqliteUpload" + File.separator + database);
 
             Statement stmt = conn.createStatement();
             ResultSet rs;
@@ -251,6 +258,12 @@ public class ConverterController {
 //            result.put("songNum", songNum);
             response.setStatus(200);
             db.closeConnection(conn);
+
+            if (IN_DOCKER)
+                saveUsageDocker(session.getId(), "Uploaded");
+            else
+                saveUsage(session.getId(), "Uploaded");
+
             return new JSONObject(result);
 
         } catch (SQLException e) {
@@ -301,7 +314,7 @@ public class ConverterController {
         Connection conn = null;
 
         try {
-            conn = db.getSQLiteConnection("sqliteUpload/" + database);
+            conn = db.getSQLiteConnection("sqliteUpload" + File.separator + database);
 
             Statement stmt = conn.createStatement();
             Statement stmt1 = conn.createStatement();
@@ -458,8 +471,26 @@ public class ConverterController {
             result.put("total", num);
             result.put("sourceChn", sourceChn);
             if (session.getAttribute("allowStatistic").equals(true)) {
-                String startTime = saveStatistic1(sourceAttribute, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, num, autoSuccessCount, similarity, session.getId());
-                session.setAttribute("startTime", startTime);
+                if (IN_DOCKER) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                    String startTime = sdf.format(System.currentTimeMillis());
+
+                    Map<String, Object> statisticRelated = new HashMap<>();
+                    statisticRelated.put("sourceChn", sourceChn);
+                    statisticRelated.put("sourceEng", sourceEng);
+                    statisticRelated.put("enableParenthesesRemoval", enableParenthesesRemoval);
+                    statisticRelated.put("enableArtistNameMatch", enableArtistNameMatch);
+                    statisticRelated.put("enableAlbumNameMatch", enableAlbumNameMatch);
+                    statisticRelated.put("mode", mode);
+                    statisticRelated.put("totalCount", num);
+                    statisticRelated.put("autoSuccessCount", autoSuccessCount);
+                    statisticRelated.put("similarity", similarity);
+                    statisticRelated.put("startTime", startTime);
+                    session.setAttribute("statisticRelated", statisticRelated);
+                } else {
+                    String startTime = saveStatistic1(sourceAttribute, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, num, autoSuccessCount, similarity, session.getId());
+                    session.setAttribute("startTime", startTime);
+                }
             }
             return new JSONObject(result);
         } catch (SQLException e) {
@@ -553,8 +584,18 @@ public class ConverterController {
             });
             fileWriter.close();
             response.setStatus(200);
-            if (session.getAttribute("allowStatistic").equals(true))
-                saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
+            if (session.getAttribute("allowStatistic").equals(true)) {
+                if (IN_DOCKER)
+                    saveStatisticDocker(session, map.size());
+                else
+                    saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
+            }
+
+            if (IN_DOCKER)
+                saveUsageDocker(session.getId(), "Save");
+            else
+                saveUsage(session.getId(), "Save");
+
             return "{\"msg\":\"保存成功\"}";
         } catch (Exception e) {
             LOGGER.error(e.toString(), e);
@@ -610,6 +651,17 @@ public class ConverterController {
         HttpSession session = request.getSession(true);
         session.setMaxInactiveInterval(900);
         session.setAttribute("allowStatistic", allowStatistic);
+
+        if (IN_DOCKER)
+            saveUsageDocker(session.getId(), "Access");
+        else {
+            try {
+                saveUsage(session.getId(), "Access");
+            } catch (SQLException e) {
+                LOGGER.error(e.toString(), e);
+            }
+        }
+
         if (ping.equals("Ping!"))
             return "Pong!";
         return "";
@@ -684,6 +736,80 @@ public class ConverterController {
 
         stmt.close();
         db.closeConnection(conn);
+    }
+
+    private void saveStatisticDocker(HttpSession session, int saveCount) {
+        Map<String, Object> result = (Map<String, Object>) session.getAttribute("statisticRelated");
+        result.put("tool", "Docker Vue+SpringBoot");
+        result.put("uuid", session.getId());
+        result.put("successCount", saveCount);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        String time = sdf.format(System.currentTimeMillis());
+        result.put("endTime", time);
+        JSONObject jsonObject = new JSONObject(result);
+
+        String url;
+        if (IN_DOCKER)
+            url = "http://localhost:8082/statistic/save";
+        else
+            url = "https://saltconv.hwinzniej.top:46000/statistic/save";
+        try {
+            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+            HttpPost httpPost = new HttpPost(url);
+
+            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
+            stringEntity.setContentType("application/json");
+            httpPost.setEntity(stringEntity);
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            response.close();
+            httpClient.close();
+        } catch (IOException e) {
+            LOGGER.error(e.toString(), e);
+        }
+    }
+
+    private void saveUsage(String sessionId, String type) throws SQLException {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        String time = sdf.format(System.currentTimeMillis());
+        Database db = new Database();
+        Connection conn = db.getMySQLConnection();
+
+        Statement stmt = conn.createStatement();
+        stmt.executeUpdate("INSERT INTO `usage` (time,sessionId,type,tool) VALUES ('" + time + "', '" + sessionId + "', '" + type + "', 'Vue+SpringBoot')");
+
+        stmt.close();
+        db.closeConnection(conn);
+    }
+
+    private void saveUsageDocker(String sessionId, String type) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        String time = sdf.format(System.currentTimeMillis());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("time", time);
+        result.put("sessionId", sessionId);
+        result.put("tool", "Docker Vue+SpringBoot");
+        result.put("type", type);
+
+        JSONObject jsonObject = new JSONObject(result);
+        String url;
+        if (IN_DOCKER)
+            url = "http://localhost:8082/statistic/usage";
+        else
+            url = "https://saltconv.hwinzniej.top:46000/statistic/usage";
+        try {
+            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+            HttpPost httpPost = new HttpPost(url);
+
+            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
+            stringEntity.setContentType("application/json");
+            httpPost.setEntity(stringEntity);
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            response.close();
+            httpClient.close();
+        } catch (IOException e) {
+            LOGGER.error(e.toString(), e);
+        }
     }
 
     private void deleteFilesInDir(File dir, String startWith) throws Exception {
