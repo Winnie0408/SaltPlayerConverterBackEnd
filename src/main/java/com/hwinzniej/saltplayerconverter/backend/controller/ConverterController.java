@@ -7,11 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.apache.commons.compress.archivers.ArchiveException;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -23,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -259,10 +253,10 @@ public class ConverterController {
             response.setStatus(200);
             db.closeConnection(conn);
 
-            if (IN_DOCKER)
-                saveUsageDocker(session.getId(), "Uploaded");
-            else
-                saveUsage(session.getId(), "Uploaded");
+//            if (IN_DOCKER)
+//                saveUsageDocker(session.getId(), "Uploaded");
+//            else
+//                saveUsage(session.getId(), "Uploaded");
 
             return new JSONObject(result);
 
@@ -584,17 +578,17 @@ public class ConverterController {
             });
             fileWriter.close();
             response.setStatus(200);
-            if (session.getAttribute("allowStatistic").equals(true)) {
-                if (IN_DOCKER)
-                    saveStatisticDocker(session, map.size());
-                else
-                    saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
-            }
+//            if (session.getAttribute("allowStatistic").equals(true)) {
+//                if (IN_DOCKER)
+//                    saveStatisticDocker(session, map.size());
+//                else
+//                    saveStatistic2((String) session.getAttribute("startTime"), session.getId(), map.size());
+//            }
 
-            if (IN_DOCKER)
-                saveUsageDocker(session.getId(), "Save");
-            else
-                saveUsage(session.getId(), "Save");
+//            if (IN_DOCKER)
+//                saveUsageDocker(session.getId(), "Save");
+//            else
+//                saveUsage(session.getId(), "Save");
 
             return "{\"msg\":\"保存成功\"}";
         } catch (Exception e) {
@@ -652,15 +646,15 @@ public class ConverterController {
         session.setMaxInactiveInterval(900);
         session.setAttribute("allowStatistic", allowStatistic);
 
-        if (IN_DOCKER)
-            saveUsageDocker(session.getId(), "Access");
-        else {
-            try {
-                saveUsage(session.getId(), "Access");
-            } catch (SQLException e) {
-                LOGGER.error(e.toString(), e);
-            }
-        }
+//        if (IN_DOCKER)
+//            saveUsageDocker(session.getId(), "Access");
+//        else {
+//            try {
+//                saveUsage(session.getId(), "Access");
+//            } catch (SQLException e) {
+//                LOGGER.error(e.toString(), e);
+//            }
+//        }
 
         if (ping.equals("Ping!"))
             return "Pong!";
@@ -716,101 +710,101 @@ public class ConverterController {
         String sourceEng = sourceAttribute.get("sourceEng");
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         String time = sdf.format(System.currentTimeMillis());
-        Database db = new Database();
-        Connection conn = db.getMySQLConnection();
-
-        Statement stmt = conn.createStatement();
-        stmt.executeUpdate("INSERT INTO info (sourceEng, sourceChn, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, totalCount, autoSuccessCount, similarity, startTime, sessionId, tool) VALUES ('" + sourceEng + "', " + "'" + sourceChn + "', " + enableParenthesesRemoval + ", " + enableArtistNameMatch + ", " + enableAlbumNameMatch + ", " + mode + ", " + totalCount + ", " + autoSuccessCount + ", " + similarity + ", '" + time + "', '" + sessionId + "', 'Vue+SpringBoot')");
-
-        stmt.close();
-        db.closeConnection(conn);
+//        Database db = new Database();
+//        Connection conn = db.getMySQLConnection();
+//
+//        Statement stmt = conn.createStatement();
+//        stmt.executeUpdate("INSERT INTO info (sourceEng, sourceChn, enableParenthesesRemoval, enableArtistNameMatch, enableAlbumNameMatch, mode, totalCount, autoSuccessCount, similarity, startTime, sessionId, tool) VALUES ('" + sourceEng + "', " + "'" + sourceChn + "', " + enableParenthesesRemoval + ", " + enableArtistNameMatch + ", " + enableAlbumNameMatch + ", " + mode + ", " + totalCount + ", " + autoSuccessCount + ", " + similarity + ", '" + time + "', '" + sessionId + "', 'Vue+SpringBoot')");
+//
+//        stmt.close();
+//        db.closeConnection(conn);
         return time;
     }
 
-    private void saveStatistic2(String time, String sessionId, int saveCount) throws SQLException {
-        Database db = new Database();
-        Connection conn = db.getMySQLConnection();
+//    private void saveStatistic2(String time, String sessionId, int saveCount) throws SQLException {
+//        Database db = new Database();
+//        Connection conn = db.getMySQLConnection();
+//
+//        Statement stmt = conn.createStatement();
+//        stmt.executeUpdate("UPDATE info SET endTime=NOW(3), saveCount=" + saveCount + " WHERE startTime='" + time + "'AND sessionId='" + sessionId + "'");
+//
+//        stmt.close();
+//        db.closeConnection(conn);
+//    }
 
-        Statement stmt = conn.createStatement();
-        stmt.executeUpdate("UPDATE info SET endTime=NOW(3), saveCount=" + saveCount + " WHERE startTime='" + time + "'AND sessionId='" + sessionId + "'");
+//    private void saveStatisticDocker(HttpSession session, int saveCount) {
+//        Map<String, Object> result = (Map<String, Object>) session.getAttribute("statisticRelated");
+//        result.put("tool", "Docker Vue+SpringBoot");
+//        result.put("uuid", session.getId());
+//        result.put("successCount", saveCount);
+//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+//        String time = sdf.format(System.currentTimeMillis());
+//        result.put("endTime", time);
+//        JSONObject jsonObject = new JSONObject(result);
+//
+//        String url;
+//        if (IN_DOCKER)
+//            url = "https://saltconv.hwinzniej.top:46000/statistic/save";
+//        else
+//            url = "http://localhost:8082/statistic/save";
+//        try {
+//            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+//            HttpPost httpPost = new HttpPost(url);
+//
+//            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
+//            stringEntity.setContentType("application/json");
+//            httpPost.setEntity(stringEntity);
+//            CloseableHttpResponse response = httpClient.execute(httpPost);
+//            response.close();
+//            httpClient.close();
+//        } catch (IOException e) {
+//            LOGGER.error(e.toString(), e);
+//        }
+//    }
 
-        stmt.close();
-        db.closeConnection(conn);
-    }
+//    private void saveUsage(String sessionId, String type) throws SQLException {
+//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+//        String time = sdf.format(System.currentTimeMillis());
+////        Database db = new Database();
+////        Connection conn = db.getMySQLConnection();
+////
+////        Statement stmt = conn.createStatement();
+////        stmt.executeUpdate("INSERT INTO `usage` (time,sessionId,type,tool) VALUES ('" + time + "', '" + sessionId + "', '" + type + "', 'Vue+SpringBoot')");
+////
+////        stmt.close();
+////        db.closeConnection(conn);
+//    }
 
-    private void saveStatisticDocker(HttpSession session, int saveCount) {
-        Map<String, Object> result = (Map<String, Object>) session.getAttribute("statisticRelated");
-        result.put("tool", "Docker Vue+SpringBoot");
-        result.put("uuid", session.getId());
-        result.put("successCount", saveCount);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        String time = sdf.format(System.currentTimeMillis());
-        result.put("endTime", time);
-        JSONObject jsonObject = new JSONObject(result);
-
-        String url;
-        if (IN_DOCKER)
-            url = "https://saltconv.hwinzniej.top:46000/statistic/save";
-        else
-            url = "http://localhost:8082/statistic/save";
-        try {
-            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-            HttpPost httpPost = new HttpPost(url);
-
-            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
-            stringEntity.setContentType("application/json");
-            httpPost.setEntity(stringEntity);
-            CloseableHttpResponse response = httpClient.execute(httpPost);
-            response.close();
-            httpClient.close();
-        } catch (IOException e) {
-            LOGGER.error(e.toString(), e);
-        }
-    }
-
-    private void saveUsage(String sessionId, String type) throws SQLException {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        String time = sdf.format(System.currentTimeMillis());
-        Database db = new Database();
-        Connection conn = db.getMySQLConnection();
-
-        Statement stmt = conn.createStatement();
-        stmt.executeUpdate("INSERT INTO `usage` (time,sessionId,type,tool) VALUES ('" + time + "', '" + sessionId + "', '" + type + "', 'Vue+SpringBoot')");
-
-        stmt.close();
-        db.closeConnection(conn);
-    }
-
-    private void saveUsageDocker(String sessionId, String type) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        String time = sdf.format(System.currentTimeMillis());
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("time", time);
-        result.put("sessionId", sessionId);
-        result.put("tool", "Docker Vue+SpringBoot");
-        result.put("type", type);
-
-        JSONObject jsonObject = new JSONObject(result);
-        String url;
-        if (IN_DOCKER)
-            url = "https://saltconv.hwinzniej.top:46000/statistic/usage";
-        else
-            url = "http://localhost:8082/statistic/usage";
-        try {
-            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-            HttpPost httpPost = new HttpPost(url);
-
-            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
-            stringEntity.setContentType("application/json");
-            httpPost.setEntity(stringEntity);
-            CloseableHttpResponse response = httpClient.execute(httpPost);
-            response.close();
-            httpClient.close();
-        } catch (IOException e) {
-            LOGGER.error(e.toString(), e);
-        }
-    }
+//    private void saveUsageDocker(String sessionId, String type) {
+//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+//        String time = sdf.format(System.currentTimeMillis());
+//
+//        Map<String, Object> result = new HashMap<>();
+//        result.put("time", time);
+//        result.put("sessionId", sessionId);
+//        result.put("tool", "Docker Vue+SpringBoot");
+//        result.put("type", type);
+//
+//        JSONObject jsonObject = new JSONObject(result);
+//        String url;
+//        if (IN_DOCKER)
+//            url = "https://saltconv.hwinzniej.top:46000/statistic/usage";
+//        else
+//            url = "http://localhost:8082/statistic/usage";
+//        try {
+//            CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+//            HttpPost httpPost = new HttpPost(url);
+//
+//            StringEntity stringEntity = new StringEntity(jsonObject.toString(), StandardCharsets.UTF_8);
+//            stringEntity.setContentType("application/json");
+//            httpPost.setEntity(stringEntity);
+//            CloseableHttpResponse response = httpClient.execute(httpPost);
+//            response.close();
+//            httpClient.close();
+//        } catch (IOException e) {
+//            LOGGER.error(e.toString(), e);
+//        }
+//    }
 
     private void deleteFilesInDir(File dir, String startWith) throws Exception {
         if (dir.isDirectory()) {

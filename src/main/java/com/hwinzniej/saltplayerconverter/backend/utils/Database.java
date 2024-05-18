@@ -43,11 +43,11 @@ public class Database {
     }
 
     public Connection getMySQLConnection() throws SQLException {
-        Connection conn = null;
-        String url = "jdbc:mysql://127.0.0.1:3306/salt_player_converter_statistic?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&rewriteBatchedStatements=true" ;
-        String username = "root" ;
+        Connection conn;
+        String url = "jdbc:mysql://127.0.0.1:3306/salt_player_converter_statistic?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true";
+        String username = "root";
 //            String password = "";
-        String password = "" ;
+        String password = "";
         conn = DriverManager.getConnection(url, username, password);
 
         return conn;
